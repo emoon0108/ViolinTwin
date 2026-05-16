@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ViolinTwinEngineModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.violintwinengine.ViolinTwinEngineModule"]
+  }
+}
