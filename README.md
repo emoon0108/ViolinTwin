@@ -29,6 +29,7 @@ npm start
 - Real-Time Analysis Screen with native live tuner and score follower
 - Feedback Report Screen
 - Digital Twin Profile Screen
+- Studio Ops Screen for teacher/student operations
 - Shared futuristic theme
 - Real microphone recording with `expo-audio`
 - Live metering waveform during capture
@@ -42,6 +43,12 @@ npm start
 - Subdivision-aware rhythmic grading with bar-line recovery feedback
 - Action-oriented `Fix Now` teacher flow with looped problem segments
 - Repeated-error interruption that forces slower correction work
+- Teacher-facing studio dashboard with student statuses, risk flags, and next actions
+- QR-style report sharing for latest session summaries and assignments
+- Lesson scheduling simulation with locally queued booking changes
+- Teacher review queue for triaging submitted practice takes
+- Studio analytics for retention, average score, practice minutes, and at-risk students
+- Offline-first sync simulation for recordings, bookings, and reports
 - Playback review with scrubber controls
 - Note-by-note pitch graph for analyzed sessions
 - Tempo and rhythm stability estimation from recorded energy onsets

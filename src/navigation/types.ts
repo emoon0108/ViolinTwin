@@ -4,4 +4,5 @@ export type RootStackParamList = {
   Analysis: undefined;
   Feedback: undefined;
   Profile: undefined;
+  StudioOps: undefined;
 };

@@ -10,6 +10,7 @@ import { FeedbackReportScreen } from "./src/screens/FeedbackReportScreen";
 import { HomeDashboardScreen } from "./src/screens/HomeDashboardScreen";
 import { PracticeRecordingScreen } from "./src/screens/PracticeRecordingScreen";
 import { RealTimeAnalysisScreen } from "./src/screens/RealTimeAnalysisScreen";
+import { StudioOpsScreen } from "./src/screens/StudioOpsScreen";
 import { colors } from "./src/theme/colors";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,6 +45,7 @@ export default function App() {
             <Stack.Screen name="Analysis" component={RealTimeAnalysisScreen} />
             <Stack.Screen name="Feedback" component={FeedbackReportScreen} />
             <Stack.Screen name="Profile" component={DigitalTwinProfileScreen} />
+            <Stack.Screen name="StudioOps" component={StudioOpsScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </PracticeProvider>

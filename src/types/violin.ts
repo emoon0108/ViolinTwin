@@ -181,6 +181,66 @@ export type TwinProfile = {
   chartValues: number[];
 };
 
+export type StudioStudentStatus = "on-track" | "needs-review" | "inactive";
+export type ReviewQueueStatus = "Needs Review" | "Assigned Drill" | "Completed";
+export type SyncStatus = "synced" | "pending" | "conflict";
+
+export type StudioStudent = {
+  id: string;
+  name: string;
+  instrument: string;
+  lastSessionLabel: string;
+  latestScore: number;
+  currentIssue: string;
+  nextAction: string;
+  status: StudioStudentStatus;
+  streakDays: number;
+};
+
+export type LessonSlot = {
+  id: string;
+  timeLabel: string;
+  studentName: string;
+  focus: string;
+  status: "open" | "booked" | "waitlist";
+};
+
+export type ReviewQueueItem = {
+  id: string;
+  studentName: string;
+  submittedLabel: string;
+  issue: string;
+  targetName: string;
+  status: ReviewQueueStatus;
+};
+
+export type StudioAnalytics = {
+  activeStudents: number;
+  weeklyRetention: number;
+  averageScore: number;
+  atRiskStudents: number;
+  topIssue: string;
+  practiceMinutes: number;
+};
+
+export type SyncRecord = {
+  id: string;
+  label: string;
+  detail: string;
+  status: SyncStatus;
+  updatedLabel: string;
+};
+
+export type StudioOpsSnapshot = {
+  students: StudioStudent[];
+  lessonSlots: LessonSlot[];
+  reviewQueue: ReviewQueueItem[];
+  analytics: StudioAnalytics;
+  syncRecords: SyncRecord[];
+  qrShareUrl: string;
+  qrPayload: string;
+};
+
 export type PracticeContextValue = {
   permissionGranted: boolean;
   isRecording: boolean;

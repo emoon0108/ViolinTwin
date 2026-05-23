@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../theme/colors";
 
-type NavKey = "Home" | "Practice" | "Analysis" | "Feedback" | "Profile";
+type NavKey = "Home" | "Practice" | "Analysis" | "Feedback" | "Profile" | "StudioOps";
 
 type BottomNavProps = {
   active: NavKey;
@@ -14,7 +14,8 @@ const items: { key: NavKey; label: string }[] = [
   { key: "Practice", label: "Practice" },
   { key: "Analysis", label: "Live" },
   { key: "Feedback", label: "Report" },
-  { key: "Profile", label: "Twin" }
+  { key: "Profile", label: "Twin" },
+  { key: "StudioOps", label: "Ops" }
 ];
 
 export function BottomNav({ active, onNavigate }: BottomNavProps) {
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 }
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textMuted
   },
   activeLabel: {
