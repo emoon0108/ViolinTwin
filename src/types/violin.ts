@@ -184,6 +184,7 @@ export type TwinProfile = {
 export type StudioStudentStatus = "on-track" | "needs-review" | "inactive";
 export type ReviewQueueStatus = "Needs Review" | "Assigned Drill" | "Completed";
 export type SyncStatus = "synced" | "pending" | "conflict";
+export type StudioRole = "Teacher" | "Student" | "Parent";
 
 export type StudioStudent = {
   id: string;
@@ -231,12 +232,83 @@ export type SyncRecord = {
   updatedLabel: string;
 };
 
+export type QrScanTarget = {
+  id: string;
+  label: string;
+  payload: string;
+  destination: "Report" | "Booking" | "Assignment";
+  studentName: string;
+  summary: string;
+  primaryAction: string;
+};
+
+export type ConflictRecord = {
+  id: string;
+  title: string;
+  localVersion: string;
+  cloudVersion: string;
+  impact: string;
+};
+
+export type StudioSetting = {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+};
+
+export type AnalyticsSegment = {
+  id: string;
+  label: string;
+  count: number;
+  criteria: string;
+  action: string;
+};
+
+export type NotificationWorkflow = {
+  id: string;
+  label: string;
+  channel: "Push" | "Email" | "SMS";
+  trigger: string;
+  status: "Ready" | "Queued" | "Paused";
+};
+
+export type ExportReport = {
+  id: string;
+  title: string;
+  format: "PDF" | "Print";
+  pages: number;
+  sections: string[];
+  status: "Ready" | "Generated";
+};
+
+export type BackendSyncTable = {
+  tableName: string;
+  records: number;
+  lastSyncLabel: string;
+  status: "ready" | "needs-env" | "syncing";
+};
+
+export type BackendSyncPlan = {
+  provider: "Supabase";
+  endpointLabel: string;
+  tables: BackendSyncTable[];
+  payloadPreview: string;
+};
+
 export type StudioOpsSnapshot = {
   students: StudioStudent[];
   lessonSlots: LessonSlot[];
   reviewQueue: ReviewQueueItem[];
   analytics: StudioAnalytics;
   syncRecords: SyncRecord[];
+  qrScanTargets: QrScanTarget[];
+  conflictRecords: ConflictRecord[];
+  settings: StudioSetting[];
+  analyticsSegments: AnalyticsSegment[];
+  notifications: NotificationWorkflow[];
+  exportReports: ExportReport[];
+  backendSync: BackendSyncPlan;
   qrShareUrl: string;
   qrPayload: string;
 };

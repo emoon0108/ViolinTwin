@@ -44,11 +44,19 @@ npm start
 - Action-oriented `Fix Now` teacher flow with looped problem segments
 - Repeated-error interruption that forces slower correction work
 - Teacher-facing studio dashboard with student statuses, risk flags, and next actions
+- Role-based Studio Ops views for teachers, students, and parents
 - QR-style report sharing for latest session summaries and assignments
+- Simulated QR scan entry for reports, booking slots, and assignments
 - Lesson scheduling simulation with locally queued booking changes
+- Admin settings for studio hours, lesson duration, cancellation policy, availability, and assignment templates
 - Teacher review queue for triaging submitted practice takes
 - Studio analytics for retention, average score, practice minutes, and at-risk students
+- Analytics segments for at-risk, fast-improving, inactive, consistent, and review-needed students
+- Notification workflow modeling for lesson reminders, reviewed-take alerts, and missed-practice nudges
+- Printable/exportable report simulation for lesson summaries and practice receipts
 - Offline-first sync simulation for recordings, bookings, and reports
+- Conflict resolution controls for local/cloud report and booking edits
+- Supabase-shaped backend sync plan for students, lessons, reports, review queue, and sync records
 - Playback review with scrubber controls
 - Note-by-note pitch graph for analyzed sessions
 - Tempo and rhythm stability estimation from recorded energy onsets

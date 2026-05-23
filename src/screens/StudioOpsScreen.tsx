@@ -10,12 +10,21 @@ import { usePractice } from "../context/PracticeContext";
 import { buildStudioOpsSnapshot } from "../lib/studioOps";
 import { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme/colors";
-import { LessonSlot, ReviewQueueStatus, StudioStudentStatus, SyncStatus } from "../types/violin";
+import {
+  ConflictRecord,
+  LessonSlot,
+  QrScanTarget,
+  ReviewQueueStatus,
+  StudioRole,
+  StudioStudentStatus,
+  SyncStatus
+} from "../types/violin";
 
 type Props = NativeStackScreenProps<RootStackParamList, "StudioOps">;
 
 const queueStatuses: ReviewQueueStatus[] = ["Needs Review", "Assigned Drill", "Completed"];
 const syncStatuses: SyncStatus[] = ["synced", "pending", "conflict"];
+const roles: StudioRole[] = ["Teacher", "Student", "Parent"];
 
 function statusLabel(status: StudioStudentStatus) {
   if (status === "on-track") {
@@ -78,21 +87,130 @@ function QRCodePreview({ payload }: { payload: string }) {
   );
 }
 
+function RoleSummary({ role, snapshot }: { role: StudioRole; snapshot: ReturnType<typeof buildStudioOpsSnapshot> }) {
+  if (role === "Student") {
+    const student = snapshot.students[0];
+    return (
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Student View</Text>
+        <Text style={styles.studentName}>{student.name}</Text>
+        <Text style={styles.bodyText}>Next assignment: {student.nextAction}</Text>
+        <View style={styles.progressRail}>
+          <View style={[styles.progressFill, { width: `${Math.max(12, student.latestScore)}%` }]} />
+        </View>
+        <Text style={styles.smallNote}>Latest score {student.latestScore}; current focus is {student.currentIssue.toLowerCase()}.</Text>
+      </GlassCard>
+    );
+  }
+
+  if (role === "Parent") {
+    return (
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Parent View</Text>
+        <View style={styles.parentGrid}>
+          <View style={styles.analyticsTile}>
+            <Text style={styles.metricLabel}>Next Lesson</Text>
+            <Text style={styles.parentValue}>Sat 11:00</Text>
+          </View>
+          <View style={styles.analyticsTile}>
+            <Text style={styles.metricLabel}>Practice Streak</Text>
+            <Text style={styles.parentValue}>{snapshot.students[0].streakDays} days</Text>
+          </View>
+        </View>
+        <Text style={styles.bodyText}>Progress summary, upcoming schedule, and teacher-approved assignments are separated from teacher triage tools.</Text>
+      </GlassCard>
+    );
+  }
+
+  return (
+    <GlassCard style={styles.card}>
+      <Text style={styles.sectionTitle}>Teacher View</Text>
+      <Text style={styles.bodyText}>Full studio controls are enabled: student triage, queue status, booking changes, analytics, QR handoff, and sync repair.</Text>
+    </GlassCard>
+  );
+}
+
+function ScannedTargetCard({ target }: { target: QrScanTarget | null }) {
+  if (!target) {
+    return (
+      <View style={styles.scanEmpty}>
+        <Text style={styles.scanEmptyText}>No scan selected</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.scannedCard}>
+      <Text style={styles.studentName}>{target.destination}</Text>
+      <Text style={styles.studentMeta}>{target.studentName}</Text>
+      <Text style={styles.issueText}>{target.summary}</Text>
+      <Text style={styles.linkText}>{target.primaryAction}</Text>
+    </View>
+  );
+}
+
+function ConflictResolver({
+  conflict,
+  resolution,
+  onResolve
+}: {
+  conflict: ConflictRecord;
+  resolution: string | null;
+  onResolve: (resolution: string) => void;
+}) {
+  return (
+    <View style={[styles.conflictCard, resolution && styles.resolvedConflict]}>
+      <View style={styles.conflictHeader}>
+        <Text style={styles.studentName}>{conflict.title}</Text>
+        <Text style={[styles.statusText, { color: resolution ? colors.success : colors.warning }]}>
+          {resolution ?? "UNRESOLVED"}
+        </Text>
+      </View>
+      <Text style={styles.bodyText}>{conflict.impact}</Text>
+      <View style={styles.versionGrid}>
+        <View style={styles.versionTile}>
+          <Text style={styles.metricLabel}>Local</Text>
+          <Text style={styles.versionText}>{conflict.localVersion}</Text>
+        </View>
+        <View style={styles.versionTile}>
+          <Text style={styles.metricLabel}>Cloud</Text>
+          <Text style={styles.versionText}>{conflict.cloudVersion}</Text>
+        </View>
+      </View>
+      <View style={styles.conflictActions}>
+        <Pressable style={styles.mergeButton} onPress={() => onResolve("LOCAL")}>
+          <Text style={styles.mergeButtonText}>Keep Local</Text>
+        </Pressable>
+        <Pressable style={styles.mergeButton} onPress={() => onResolve("CLOUD")}>
+          <Text style={styles.mergeButtonText}>Use Cloud</Text>
+        </Pressable>
+        <Pressable style={styles.mergeButton} onPress={() => onResolve("MERGED")}>
+          <Text style={styles.mergeButtonText}>Merge</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function StudioOpsScreen({ navigation }: Props) {
   const { history } = usePractice();
   const snapshot = useMemo(() => buildStudioOpsSnapshot(history), [history]);
+  const [selectedRole, setSelectedRole] = useState<StudioRole>("Teacher");
+  const [selectedScanId, setSelectedScanId] = useState(snapshot.qrScanTargets[0]?.id ?? "report");
   const [bookedSlots, setBookedSlots] = useState<Record<string, boolean>>({});
   const [queueOverrides, setQueueOverrides] = useState<Record<string, ReviewQueueStatus>>({});
   const [syncOverrides, setSyncOverrides] = useState<Record<string, SyncStatus>>({});
+  const [conflictResolutions, setConflictResolutions] = useState<Record<string, string>>({});
 
   const selectedSlotCount = Object.values(bookedSlots).filter(Boolean).length;
+  const selectedScan = snapshot.qrScanTargets.find((target) => target.id === selectedScanId) ?? null;
 
   return (
     <ScreenBackground>
       <Text style={styles.eyebrow}>STUDIO OPERATIONS</Text>
       <Text style={styles.heading}>Studio Ops</Text>
       <Text style={styles.subheading}>
-        A teacher-facing layer for scheduling, QR reports, review queues, analytics, and offline sync.
+        Role-based workflows for scheduling, QR entry, review queues, analytics, and offline sync repair.
       </Text>
 
       <GlassCard style={styles.heroCard}>
@@ -112,6 +230,23 @@ export function StudioOpsScreen({ navigation }: Props) {
         </View>
         <Text style={styles.heroNote}>Top studio issue: {snapshot.analytics.topIssue}</Text>
       </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Role-Based Views</Text>
+        <View style={styles.roleTabs}>
+          {roles.map((role) => (
+            <Pressable
+              key={role}
+              style={[styles.roleTab, selectedRole === role && styles.roleTabActive]}
+              onPress={() => setSelectedRole(role)}
+            >
+              <Text style={[styles.roleTabText, selectedRole === role && styles.roleTabTextActive]}>{role}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </GlassCard>
+
+      <RoleSummary role={selectedRole} snapshot={snapshot} />
 
       <GlassCard style={styles.card}>
         <Text style={styles.sectionTitle}>Teacher Dashboard</Text>
@@ -144,6 +279,24 @@ export function StudioOpsScreen({ navigation }: Props) {
       </GlassCard>
 
       <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>QR Scan Entry</Text>
+        <View style={styles.scanButtonRow}>
+          {snapshot.qrScanTargets.map((target) => (
+            <Pressable
+              key={target.id}
+              style={[styles.scanButton, selectedScanId === target.id && styles.scanButtonActive]}
+              onPress={() => setSelectedScanId(target.id)}
+            >
+              <Text style={[styles.scanButtonText, selectedScanId === target.id && styles.scanButtonTextActive]}>
+                {target.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <ScannedTargetCard target={selectedScan} />
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
         <Text style={styles.sectionTitle}>Lesson Scheduling</Text>
         {snapshot.lessonSlots.map((slot) => {
           const locallyBooked = bookedSlots[slot.id];
@@ -166,6 +319,19 @@ export function StudioOpsScreen({ navigation }: Props) {
           );
         })}
         <Text style={styles.smallNote}>{selectedSlotCount} local booking change queued for sync.</Text>
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Admin Settings</Text>
+        {snapshot.settings.map((setting) => (
+          <View key={setting.id} style={styles.settingRow}>
+            <View style={styles.studentMain}>
+              <Text style={styles.studentName}>{setting.label}</Text>
+              <Text style={styles.studentMeta}>{setting.detail}</Text>
+            </View>
+            <Text style={styles.settingValue}>{setting.value}</Text>
+          </View>
+        ))}
       </GlassCard>
 
       <GlassCard style={styles.card}>
@@ -213,6 +379,57 @@ export function StudioOpsScreen({ navigation }: Props) {
       </GlassCard>
 
       <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Analytics Segments</Text>
+        <View style={styles.segmentGrid}>
+          {snapshot.analyticsSegments.map((segment) => (
+            <View key={segment.id} style={styles.segmentTile}>
+              <View style={styles.segmentTop}>
+                <Text style={styles.segmentCount}>{segment.count}</Text>
+                <Text style={styles.segmentLabel}>{segment.label}</Text>
+              </View>
+              <Text style={styles.studentMeta}>{segment.criteria}</Text>
+              <Text style={styles.linkText}>{segment.action}</Text>
+            </View>
+          ))}
+        </View>
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Notification Workflow</Text>
+        {snapshot.notifications.map((notification) => (
+          <View key={notification.id} style={styles.notificationRow}>
+            <View style={styles.channelBadge}>
+              <Text style={styles.channelText}>{notification.channel}</Text>
+            </View>
+            <View style={styles.studentMain}>
+              <Text style={styles.studentName}>{notification.label}</Text>
+              <Text style={styles.studentMeta}>{notification.trigger}</Text>
+            </View>
+            <Text style={[styles.statusText, { color: notification.status === "Paused" ? colors.warning : colors.success }]}>
+              {notification.status.toUpperCase()}
+            </Text>
+          </View>
+        ))}
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Print & Export</Text>
+        {snapshot.exportReports.map((report) => (
+          <View key={report.id} style={styles.exportRow}>
+            <View style={styles.studentMain}>
+              <Text style={styles.studentName}>{report.title}</Text>
+              <Text style={styles.studentMeta}>
+                {report.format} · {report.pages} {report.pages === 1 ? "page" : "pages"} · {report.sections.join(", ")}
+              </Text>
+            </View>
+            <View style={styles.printBadge}>
+              <Text style={styles.printBadgeText}>{report.status}</Text>
+            </View>
+          </View>
+        ))}
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
         <Text style={styles.sectionTitle}>Offline Sync Simulation</Text>
         {snapshot.syncRecords.map((record) => {
           const status = syncOverrides[record.id] ?? record.status;
@@ -238,6 +455,44 @@ export function StudioOpsScreen({ navigation }: Props) {
             </Pressable>
           );
         })}
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Conflict Resolution</Text>
+        {snapshot.conflictRecords.map((conflict) => (
+          <ConflictResolver
+            key={conflict.id}
+            conflict={conflict}
+            resolution={conflictResolutions[conflict.id] ?? null}
+            onResolve={(resolution) =>
+              setConflictResolutions((current) => ({
+                ...current,
+                [conflict.id]: resolution
+              }))
+            }
+          />
+        ))}
+      </GlassCard>
+
+      <GlassCard style={styles.card}>
+        <Text style={styles.sectionTitle}>Backend Sync</Text>
+        <Text style={styles.bodyText}>{snapshot.backendSync.provider} · {snapshot.backendSync.endpointLabel}</Text>
+        {snapshot.backendSync.tables.map((table) => (
+          <View key={table.tableName} style={styles.backendRow}>
+            <View style={styles.studentMain}>
+              <Text style={styles.studentName}>{table.tableName}</Text>
+              <Text style={styles.studentMeta}>
+                {table.records} records · {table.lastSyncLabel}
+              </Text>
+            </View>
+            <Text style={[styles.statusText, { color: table.status === "needs-env" ? colors.warning : colors.success }]}>
+              {table.status.toUpperCase()}
+            </Text>
+          </View>
+        ))}
+        <View style={styles.payloadBox}>
+          <Text style={styles.payloadText}>{snapshot.backendSync.payloadPreview}</Text>
+        </View>
       </GlassCard>
 
       <NeonButton label="Open Practice Capture" variant="secondary" onPress={() => navigation.navigate("Practice")} />
@@ -299,6 +554,54 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12
   },
+  roleTabs: {
+    flexDirection: "row",
+    gap: 10
+  },
+  roleTab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 11,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  roleTabActive: {
+    backgroundColor: "rgba(79,213,255,0.16)",
+    borderColor: colors.cyan
+  },
+  roleTabText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  roleTabTextActive: {
+    color: colors.textPrimary
+  },
+  progressRail: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginTop: 14,
+    overflow: "hidden"
+  },
+  progressFill: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: colors.success
+  },
+  parentGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12
+  },
+  parentValue: {
+    color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: 6
+  },
   studentRow: {
     flexDirection: "row",
     gap: 12,
@@ -359,6 +662,48 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 10
   },
+  scanButtonRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12
+  },
+  scanButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  scanButtonActive: {
+    backgroundColor: "rgba(138,108,255,0.18)",
+    borderColor: colors.violet
+  },
+  scanButtonText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  scanButtonTextActive: {
+    color: colors.textPrimary
+  },
+  scanEmpty: {
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)"
+  },
+  scanEmptyText: {
+    color: colors.textMuted,
+    fontSize: 13
+  },
+  scannedCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(79,213,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(79,213,255,0.22)"
+  },
   slotRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -386,6 +731,21 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 12
+  },
+  settingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)"
+  },
+  settingValue: {
+    color: colors.cyan,
+    fontSize: 12,
+    fontWeight: "800",
+    maxWidth: 112,
+    textAlign: "right"
   },
   queueRow: {
     flexDirection: "row",
@@ -422,6 +782,75 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border
   },
+  segmentGrid: {
+    gap: 10
+  },
+  segmentTile: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  segmentTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  segmentCount: {
+    color: colors.cyan,
+    fontSize: 24,
+    fontWeight: "800"
+  },
+  segmentLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  notificationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)"
+  },
+  channelBadge: {
+    minWidth: 46,
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "rgba(138,108,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(138,108,255,0.32)"
+  },
+  channelText: {
+    color: colors.textPrimary,
+    fontSize: 10,
+    fontWeight: "900"
+  },
+  exportRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 13,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)"
+  },
+  printBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 16,
+    backgroundColor: "rgba(79,213,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(79,213,255,0.26)"
+  },
+  printBadgeText: {
+    color: colors.cyan,
+    fontSize: 11,
+    fontWeight: "900"
+  },
   syncRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -434,5 +863,79 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 999
+  },
+  conflictCard: {
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)"
+  },
+  resolvedConflict: {
+    opacity: 0.86
+  },
+  conflictHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 8
+  },
+  versionGrid: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12
+  },
+  versionTile: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  versionText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 6
+  },
+  conflictActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 12
+  },
+  mergeButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  mergeButtonText: {
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  backendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.06)"
+  },
+  payloadBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.18)",
+    borderWidth: 1,
+    borderColor: colors.border
+  },
+  payloadText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 16
   }
 });
